@@ -1,3 +1,5 @@
+#![feature(core)]
+
 use std::ops::{
     Add,
     Sub,
@@ -6,7 +8,12 @@ use std::ops::{
     Neg
 };
 use std::fmt;
+use std::num::{
+    cast,
+    NumCast
+};
 
+/// Range arithmetic structure
 #[derive(Copy, Debug, PartialEq, PartialOrd)]
 pub struct Interval<T>
 where T: Copy {
@@ -16,6 +23,9 @@ where T: Copy {
 
 impl<T> Interval<T>
 where T: Copy + PartialOrd + fmt::Debug {
+    /// Create interval with start and end of range
+    ///
+    /// This will panic if `start` is greater than `end`. Only proper intervals are allowed.
     pub fn with_range(start: T, end: T) -> Self {
         assert!(start <= end, "{:?} must be no greater than {:?}", start, end);
 
@@ -25,19 +35,55 @@ where T: Copy + PartialOrd + fmt::Debug {
         }
     }
 
+    /// Create interval with central element and deviation ε
     pub fn with_epsilon<P>(center: P, epsilon: P) -> Self
     where P: Add<Output = T> + Sub<Output = T> + PartialOrd + Copy {
-        assert!(epsilon < center);
         Interval::with_range(center - epsilon, center + epsilon)
     }
 
+    /// Check if value fit inside range
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use inter::Interval;
+    /// let interval = Interval::with_range(1., 2.);
+    ///
+    /// assert!(interval.contains(1.5));
+    /// assert!(!interval.contains(2.1))
+    /// ```
     pub fn contains(&self, value: T) -> bool {
-        self.start < value && value < self.end
+        self.start <= value && value <= self.end
     }
 
+    /// Width of interval
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use inter::Interval;
+    /// let interval = Interval::with_range(1., 2.);
+    ///
+    /// assert_eq!(interval.width(), 1.);
+    /// ```
     pub fn width(&self) -> T
     where T: Sub<Output = T> {
         self.end - self.start
+    }
+
+    /// Central element of interval (mean)
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use inter::Interval;
+    /// let interval = Interval::with_range(1., 2.);
+    ///
+    /// assert_eq!(interval.center(), 1.5);
+    /// ```
+    pub fn center(&self) -> T
+    where T: Add<Output = T> + Div<Output = T> + NumCast {
+        (self.start + self.end) / cast(2).unwrap()
     }
 }
 
