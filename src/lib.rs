@@ -1,3 +1,7 @@
+//! Interval arithmetic for Rust.
+//!
+//! Created as part of Numerical Analysis at Computer Engineering classes at PUT
+
 #![feature(core)]
 
 use std::ops::{
@@ -12,9 +16,10 @@ use std::num::{
     cast,
     NumCast
 };
+use std::cmp::Ordering;
 
 /// Range arithmetic structure
-#[derive(Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Debug, PartialEq)]
 pub struct Interval<T>
 where T: Copy {
     start: T,
@@ -40,7 +45,10 @@ where T: Copy + PartialOrd + fmt::Debug {
     where P: Add<Output = T> + Sub<Output = T> + PartialOrd + Copy {
         Interval::with_range(center - epsilon, center + epsilon)
     }
+}
 
+impl<T> Interval<T>
+where T: Copy {
     /// Check if value fit inside range
     ///
     /// ## Example
@@ -52,7 +60,8 @@ where T: Copy + PartialOrd + fmt::Debug {
     /// assert!(interval.contains(1.5));
     /// assert!(!interval.contains(2.1))
     /// ```
-    pub fn contains(&self, value: T) -> bool {
+    pub fn contains(&self, value: T) -> bool
+    where T: PartialOrd {
         self.start <= value && value <= self.end
     }
 
@@ -91,6 +100,30 @@ impl<T> fmt::Display for Interval<T>
 where T: fmt::Display + Copy {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "[{}, {}]", self.start, self.end)
+    }
+}
+
+impl<T> PartialEq<T> for Interval<T>
+where T: PartialOrd + Copy {
+    fn eq(&self, other: &T) -> bool {
+        self.contains(*other)
+    }
+}
+
+impl<T> PartialOrd<T> for Interval<T>
+where T: PartialOrd + Copy {
+    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
+        if *other < self.start {
+            return Some(Ordering::Greater)
+        }
+        if *other > self.end {
+            return Some(Ordering::Less)
+        }
+        if self.contains(*other) {
+            return Some(Ordering::Equal)
+        }
+
+        None
     }
 }
 
@@ -174,6 +207,18 @@ mod test {
     fn contains() {
         let (a, _) = setup();
         assert!(a.contains(1.5));
+        assert!(!a.contains(2.1));
+        assert!(a == 1.5);
+        assert!(a != 2.1);
+    }
+
+    #[test]
+    fn ordering() {
+        let (a, _) = setup();
+        assert!(a > 0.);
+        assert!(a < 3.);
+        assert!(a <= 1.5);
+        assert!(a >= 1.5);
     }
 
     #[test]
