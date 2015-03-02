@@ -1,0 +1,5 @@
+[package]
+
+name = "inter"
+version = "0.0.1"
+authors = ["Łukasz Niemier <lukasz@niemier.pl>"]
