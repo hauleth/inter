@@ -2,8 +2,7 @@
 //!
 //! Created as part of Numerical Analysis at Computer Engineering classes at PUT
 
-#![feature(core)]
-#![feature(libc)]
+#![feature(core, libc)]
 
 extern crate num;
 extern crate libc;

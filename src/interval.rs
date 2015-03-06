@@ -326,7 +326,7 @@ where T: Float + Num {
     pub fn sin(self) -> Self {
         let x2 = self * self;
 
-        let mut ret = (1..500_000).fold(self, |acc, i| {
+        let mut ret = (1u64..500_000).fold(self, |acc, i| {
             let mul: T = cast(2*i * (2*i + 1)).unwrap();
             let int = Interval::exact(mul);
             let mul = x2 / int;
