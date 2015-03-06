@@ -7,6 +7,7 @@ use std::ops::{
 };
 use std::fmt;
 use std::num::{
+    Float,
     cast,
     NumCast
 };
@@ -15,6 +16,12 @@ use std::cmp::{
     partial_min,
     partial_max
 };
+use num::{
+    Zero,
+    One,
+    Num,
+};
+use super::rounding::Rounding;
 
 /// Range arithmetic structure
 ///
@@ -54,19 +61,20 @@ use std::cmp::{
 ///   assert!(Interval::with_range(1., 2.) >= 1.5);
 ///   ```
 #[derive(Copy, Debug, PartialEq)]
-pub struct Interval<T>
-where T: Copy {
+pub struct Interval<T> {
     start: T,
     end: T
 }
 
 impl<T> Interval<T>
-where T: Copy + PartialOrd + fmt::Debug {
+where T: PartialOrd {
     /// Create interval with start and end of range
+    ///
+    /// # Panics
     ///
     /// This will panic if `start` is greater than `end`. Only proper intervals are allowed.
     pub fn with_range(start: T, end: T) -> Self {
-        assert!(start <= end, "{:?} must be no greater than {:?}", start, end);
+        assert!(start <= end);
 
         Interval {
             start: start,
@@ -76,9 +84,32 @@ where T: Copy + PartialOrd + fmt::Debug {
 
     /// Create interval with central element and deviation ε
     pub fn with_epsilon<P>(center: P, epsilon: P) -> Self
-        where P: Add<Output = T> + Sub<Output = T> + PartialOrd + Copy {
+        where P: Add<Output = T> + Sub<Output = T> + Copy {
             Interval::with_range(center - epsilon, center + epsilon)
         }
+
+    pub fn exact(value: T) -> Self
+    where T: Num + Copy {
+        Interval::with_epsilon(value, Zero::zero())
+    }
+}
+
+impl<T> Zero for Interval<T>
+where T: Num + Copy + PartialOrd {
+    fn zero() -> Self {
+        Interval::exact(Zero::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.start == Zero::zero() && self.end == Zero::zero()
+    }
+}
+
+impl<T> One for Interval<T>
+where T: Num + Copy + PartialOrd {
+    fn one() -> Self {
+        Interval::exact(One::one())
+    }
 }
 
 impl<T> Interval<T>
@@ -215,9 +246,11 @@ where T: Add<Output = T> + Copy {
     type Output = Interval<T>;
 
     fn add(self, other: Self) -> Self {
+        let start = Rounding::Downward.execute(|| self.start + other.start);
+        let end = Rounding::Upward.execute(|| self.end + other.end);
         Interval {
-            start: self.start + other.start,
-            end: self.end + other.end
+            start: start,
+            end: end
         }
     }
 }
@@ -227,9 +260,11 @@ where T: Sub<Output = T> + Copy {
     type Output = Interval<T>;
 
     fn sub(self, other: Self) -> Self {
+        let start = Rounding::Downward.execute(|| self.start - other.start);
+        let end = Rounding::Upward.execute(|| self.end - other.end);
         Interval {
-            start: self.start - other.start,
-            end: self.end - other.end
+            start: start,
+            end: end
         }
     }
 }
@@ -240,12 +275,16 @@ where T: Mul<Output = T> + Copy + PartialOrd {
 
     fn mul(self, other: Self) -> Self {
         let (a, b, c, d) = (self.start, self.end, other.start, other.end);
-        let mut v = vec![a * c, a * d, b * c, b * d];
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let min = Rounding::Downward.execute(|| {
+            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_min(acc, i).unwrap())
+        });
+        let max = Rounding::Upward.execute(|| {
+            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_max(acc, i).unwrap())
+        });
 
         Interval {
-            start: v[0],
-            end: v[3]
+            start: min,
+            end: max
         }
     }
 }
@@ -256,12 +295,16 @@ where T: Div<Output = T> + Copy + PartialOrd {
 
     fn div(self, other: Self) -> Self {
         let (a, b, c, d) = (self.start, self.end, other.start, other.end);
-        let mut v = vec![a / c, a / d, b / c, b / d];
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let min = Rounding::Downward.execute(|| {
+            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_min(acc, i).unwrap())
+        });
+        let max = Rounding::Upward.execute(|| {
+            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_max(acc, i).unwrap())
+        });
 
         Interval {
-            start: v[0],
-            end: v[3]
+            start: min,
+            end: max
         }
     }
 }
@@ -276,6 +319,41 @@ where T: Neg<Output = T> + Copy {
             end: -self.start
         }
     }
+}
+
+impl<T> Interval<T>
+where T: Float + Num {
+    pub fn sin(self) -> Self {
+        let x2 = self * self;
+
+        let mut ret = (1..500_000).fold(self, |acc, i| {
+            let mul: T = cast(2*i * (2*i + 1)).unwrap();
+            let int = Interval::exact(mul);
+            let mul = x2 / int;
+            if i % 2 == 0 { acc * mul + acc } else { acc * mul - acc }
+        });
+
+        ret.start = ret.start.max(cast(-1).unwrap()).min(One::one());
+        ret.end = ret.end.max(cast(-1).unwrap()).min(One::one());
+
+        ret
+    }
+
+    // pub fn cos(self) -> Self {
+    //     let x2 = self * self;
+
+    //     let mut ret = (1..500_000).fold(One::one(), |acc, i| {
+    //         let mul: T = cast(2*i * (2*i + 1)).unwrap();
+    //         let int = Interval::exact(mul);
+    //         let mul = x2 / int;
+    //         if i % 2 == 0 { acc * mul + acc } else { acc * mul - acc }
+    //     });
+
+    //     ret.start = ret.start.max(cast(-1).unwrap()).min(One::one());
+    //     ret.end = ret.end.max(cast(-1).unwrap()).min(One::one());
+
+    //     ret
+    // }
 }
 
 #[cfg(test)]

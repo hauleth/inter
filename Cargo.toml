@@ -2,4 +2,14 @@
 
 name = "inter"
 version = "0.0.1"
+
+description = "Interval arithmetic in Rust"
+license = "MIT"
+keywords = ["math", "arithmetic", "intervals"]
+
+repository = "https://github.com/hauleth/inter.git"
+
 authors = ["Łukasz Niemier <lukasz@niemier.pl>"]
+
+[dependencies]
+num = "*"
