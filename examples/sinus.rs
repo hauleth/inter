@@ -1,9 +1,8 @@
 extern crate inter;
+extern crate num;
 
 use inter::Interval;
-use std::num::{
-    Float
-};
+use num::Float;
 
 fn main() {
     let x = 0.785;

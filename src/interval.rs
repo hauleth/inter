@@ -6,22 +6,21 @@ use std::ops::{
     Neg
 };
 use std::fmt;
-use std::num::{
-    Float,
-    cast,
-    NumCast
-};
-use std::cmp::{
-    Ordering,
-    partial_min,
-    partial_max
-};
+use std::cmp::Ordering;
 use num::{
+    Float,
     Zero,
     One,
     Num,
+    FromPrimitive,
+    zero,
+    one
 };
-use super::rounding::Rounding;
+use rounding::Rounding;
+use utils::{
+    partial_min,
+    partial_max
+};
 
 /// Range arithmetic structure
 ///
@@ -60,7 +59,7 @@ use super::rounding::Rounding;
 ///   assert!(Interval::with_range(1., 2.) <= 1.5);
 ///   assert!(Interval::with_range(1., 2.) >= 1.5);
 ///   ```
-#[derive(Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval<T> {
     start: T,
     end: T
@@ -108,7 +107,7 @@ where T: Num + Copy + PartialOrd {
 impl<T> One for Interval<T>
 where T: Num + Copy + PartialOrd {
     fn one() -> Self {
-        Interval::exact(One::one())
+        Interval::exact(one())
     }
 }
 
@@ -156,8 +155,8 @@ where T: Copy {
     /// assert_eq!(interval.center(), 1.5);
     /// ```
     pub fn center(&self) -> T
-        where T: Add<Output = T> + Div<Output = T> + NumCast {
-            (self.start + self.end) / cast(2).unwrap()
+        where T: Add<Output = T> + Div<Output = T> + FromPrimitive {
+            (self.start + self.end) / FromPrimitive::from_usize(2).unwrap()
         }
 
     /// Calculate intersection of intervals.
@@ -184,13 +183,13 @@ where T: Copy {
             let low = partial_max(self.start, other.start);
             let high = partial_min(self.end, other.end);
 
-            if low.is_none() || high.is_none() || low > high {
+            if low > high {
                 return None
             }
 
             Some(Interval {
-                start: low.unwrap(),
-                end: high.unwrap()
+                start: low,
+                end: high
             })
         }
 
@@ -205,8 +204,8 @@ where T: Copy {
     /// assert_eq!(interval.epsilon(), 0.5);
     /// ```
     pub fn epsilon(&self) -> T
-        where T: Sub<Output = T> + Div<Output = T> + NumCast {
-            self.width() / cast(2).unwrap()
+        where T: Sub<Output = T> + Div<Output = T> + FromPrimitive {
+            self.width() / FromPrimitive::from_usize(2).unwrap()
         }
 }
 
@@ -223,6 +222,24 @@ where T: PartialOrd + Copy {
         self.contains(*other)
     }
 }
+
+// impl<T> PartialOrd for Interval<T>
+// where T: Float + Copy {
+//     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+//         if self.end < other.start {
+//             return Some(Ordering::Less)
+//         }
+//         if self.start > other.end {
+//             return Some(Ordering::Greater)
+//         }
+//         if (self.start - other.start).abs() <  &&
+//             (self.end - other.end).abs() < Float::epsilon() {
+//                 return Some(Ordering::Equal)
+//             }
+
+//         None
+//     }
+// }
 
 impl<T> PartialOrd<T> for Interval<T>
 where T: PartialOrd + Copy {
@@ -276,10 +293,10 @@ where T: Mul<Output = T> + Copy + PartialOrd {
     fn mul(self, other: Self) -> Self {
         let (a, b, c, d) = (self.start, self.end, other.start, other.end);
         let min = Rounding::Downward.execute(|| {
-            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_min(acc, i).unwrap())
+            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_min(acc, i))
         });
         let max = Rounding::Upward.execute(|| {
-            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_max(acc, i).unwrap())
+            vec![a * d, b * c, b * d].into_iter().fold(a * c, |acc, i| partial_max(acc, i))
         });
 
         Interval {
@@ -296,10 +313,10 @@ where T: Div<Output = T> + Copy + PartialOrd {
     fn div(self, other: Self) -> Self {
         let (a, b, c, d) = (self.start, self.end, other.start, other.end);
         let min = Rounding::Downward.execute(|| {
-            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_min(acc, i).unwrap())
+            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_min(acc, i))
         });
         let max = Rounding::Upward.execute(|| {
-            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_max(acc, i).unwrap())
+            vec![a / d, b / c, b / d].into_iter().fold(a / c, |acc, i| partial_max(acc, i))
         });
 
         Interval {
@@ -322,19 +339,22 @@ where T: Neg<Output = T> + Copy {
 }
 
 impl<T> Interval<T>
-where T: Float + Num {
+where T: Float + Num + FromPrimitive {
     pub fn sin(self) -> Self {
         let x2 = self * self;
 
         let mut ret = (1u64..500_000).fold(self, |acc, i| {
-            let mul: T = cast(2*i * (2*i + 1)).unwrap();
+            let mul: T = FromPrimitive::from_u64(2 * i * (2 * i + 1)).unwrap();
             let int = Interval::exact(mul);
             let mul = x2 / int;
             if i % 2 == 0 { acc * mul + acc } else { acc * mul - acc }
         });
 
-        ret.start = ret.start.max(cast(-1).unwrap()).min(One::one());
-        ret.end = ret.end.max(cast(-1).unwrap()).min(One::one());
+        let min = FromPrimitive::from_isize(-1).unwrap();
+        let max = one();
+
+        ret.start = ret.start.max(min).min(max);
+        ret.end = ret.end.max(min).min(max);
 
         ret
     }
@@ -342,15 +362,15 @@ where T: Float + Num {
     // pub fn cos(self) -> Self {
     //     let x2 = self * self;
 
-    //     let mut ret = (1..500_000).fold(One::one(), |acc, i| {
+    //     let mut ret = (1..500_000).fold(one(), |acc, i| {
     //         let mul: T = cast(2*i * (2*i + 1)).unwrap();
     //         let int = Interval::exact(mul);
     //         let mul = x2 / int;
     //         if i % 2 == 0 { acc * mul + acc } else { acc * mul - acc }
     //     });
 
-    //     ret.start = ret.start.max(cast(-1).unwrap()).min(One::one());
-    //     ret.end = ret.end.max(cast(-1).unwrap()).min(One::one());
+    //     ret.start = ret.start.max(cast(-1).unwrap()).min(one());
+    //     ret.end = ret.end.max(cast(-1).unwrap()).min(one());
 
     //     ret
     // }

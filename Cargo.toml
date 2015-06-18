@@ -13,3 +13,4 @@ authors = ["Łukasz Niemier <lukasz@niemier.pl>"]
 
 [dependencies]
 num = "*"
+libc = "*"

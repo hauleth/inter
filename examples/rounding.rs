@@ -1,18 +1,16 @@
-#![feature(core)]
-
 extern crate inter;
+extern crate num;
 
 use inter::rounding::Rounding;
-use std::num::{
+use num::{
     Float,
-    cast
+    FromPrimitive
 };
-use std::fmt;
 
 fn calc<T>(name: &str)
-where T: Float + fmt::LowerExp {
-    let x: T = cast(1.0).unwrap();
-    let y: T = cast(1.0e-20).unwrap();
+where T: Float + FromPrimitive + std::fmt::LowerExp {
+    let x: T = FromPrimitive::from_f64(1.0).unwrap();
+    let y: T = FromPrimitive::from_f64(1.0e-20).unwrap();
     let z1 = x - y;
     let z2 = y - x;
     let z1 = z1 - x;
