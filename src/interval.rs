@@ -1,26 +1,11 @@
-use std::ops::{
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Neg
-};
+use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::fmt;
 use std::cmp::Ordering;
-use num::{
-    Float,
-    Zero,
-    One,
-    Num,
-    FromPrimitive,
-    zero,
-    one
-};
+
+use num::{Float, Zero, One, Num, FromPrimitive, one};
+
 use rounding::Rounding;
-use utils::{
-    partial_min,
-    partial_max
-};
+use utils::{partial_min, partial_max};
 
 /// Range arithmetic structure
 ///
@@ -62,11 +47,12 @@ use utils::{
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval<T> {
     start: T,
-    end: T
+    end: T,
 }
 
 impl<T> Interval<T>
-where T: PartialOrd {
+    where T: PartialOrd
+{
     /// Create interval with start and end of range
     ///
     /// # Panics
@@ -77,24 +63,27 @@ where T: PartialOrd {
 
         Interval {
             start: start,
-            end: end
+            end: end,
         }
     }
 
     /// Create interval with central element and deviation ε
     pub fn with_epsilon<P>(center: P, epsilon: P) -> Self
-        where P: Add<Output = T> + Sub<Output = T> + Copy {
-            Interval::with_range(center - epsilon, center + epsilon)
-        }
+        where P: Add<Output = T> + Sub<Output = T> + Copy
+    {
+        Interval::with_range(center - epsilon, center + epsilon)
+    }
 
     pub fn exact(value: T) -> Self
-    where T: Num + Copy {
+        where T: Num + Copy
+    {
         Interval::with_epsilon(value, Zero::zero())
     }
 }
 
 impl<T> Zero for Interval<T>
-where T: Num + Copy + PartialOrd {
+    where T: Num + Copy + PartialOrd
+{
     fn zero() -> Self {
         Interval::exact(Zero::zero())
     }
@@ -105,14 +94,16 @@ where T: Num + Copy + PartialOrd {
 }
 
 impl<T> One for Interval<T>
-where T: Num + Copy + PartialOrd {
+    where T: Num + Copy + PartialOrd
+{
     fn one() -> Self {
         Interval::exact(one())
     }
 }
 
 impl<T> Interval<T>
-where T: Copy {
+    where T: Copy
+{
     /// Check if value fit inside range
     ///
     /// ## Example
@@ -125,9 +116,10 @@ where T: Copy {
     /// assert!(!interval.contains(2.1))
     /// ```
     pub fn contains(&self, value: T) -> bool
-        where T: PartialOrd {
-            self.start <= value && value <= self.end
-        }
+        where T: PartialOrd
+    {
+        self.start <= value && value <= self.end
+    }
 
     /// Width of interval
     ///
@@ -140,9 +132,10 @@ where T: Copy {
     /// assert_eq!(interval.width(), 1.);
     /// ```
     pub fn width(&self) -> T
-        where T: Sub<Output = T> {
-            self.end - self.start
-        }
+        where T: Sub<Output = T>
+    {
+        self.end - self.start
+    }
 
     /// Central element of interval (mean)
     ///
@@ -155,9 +148,10 @@ where T: Copy {
     /// assert_eq!(interval.center(), 1.5);
     /// ```
     pub fn center(&self) -> T
-        where T: Add<Output = T> + Div<Output = T> + FromPrimitive {
-            (self.start + self.end) / FromPrimitive::from_usize(2).unwrap()
-        }
+        where T: Add<Output = T> + Div<Output = T> + FromPrimitive
+    {
+        (self.start + self.end) / FromPrimitive::from_usize(2).unwrap()
+    }
 
     /// Calculate intersection of intervals.
     ///
@@ -179,19 +173,20 @@ where T: Copy {
     /// assert_eq!(a.intersection(&c), None);
     /// ```
     pub fn intersection(&self, other: &Interval<T>) -> Option<Interval<T>>
-        where T: PartialOrd {
-            let low = partial_max(self.start, other.start);
-            let high = partial_min(self.end, other.end);
+        where T: PartialOrd
+    {
+        let low = partial_max(self.start, other.start);
+        let high = partial_min(self.end, other.end);
 
-            if low > high {
-                return None
-            }
-
-            Some(Interval {
-                start: low,
-                end: high
-            })
+        if low > high {
+            return None;
         }
+
+        Some(Interval {
+            start: low,
+            end: high,
+        })
+    }
 
     /// Return ε (half of interval width)
     ///
@@ -204,20 +199,23 @@ where T: Copy {
     /// assert_eq!(interval.epsilon(), 0.5);
     /// ```
     pub fn epsilon(&self) -> T
-        where T: Sub<Output = T> + Div<Output = T> + FromPrimitive {
-            self.width() / FromPrimitive::from_usize(2).unwrap()
-        }
+        where T: Sub<Output = T> + Div<Output = T> + FromPrimitive
+    {
+        self.width() / FromPrimitive::from_usize(2).unwrap()
+    }
 }
 
 impl<T> fmt::Display for Interval<T>
-where T: fmt::Display + Copy {
+    where T: fmt::Display + Copy
+{
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "[{}, {}]", self.start, self.end)
     }
 }
 
 impl<T> PartialEq<T> for Interval<T>
-where T: PartialOrd + Copy {
+    where T: PartialOrd + Copy
+{
     fn eq(&self, other: &T) -> bool {
         self.contains(*other)
     }
@@ -242,16 +240,17 @@ where T: PartialOrd + Copy {
 // }
 
 impl<T> PartialOrd<T> for Interval<T>
-where T: PartialOrd + Copy {
+    where T: PartialOrd + Copy
+{
     fn partial_cmp(&self, other: &T) -> Option<Ordering> {
         if *other < self.start {
-            return Some(Ordering::Greater)
+            return Some(Ordering::Greater);
         }
         if *other > self.end {
-            return Some(Ordering::Less)
+            return Some(Ordering::Less);
         }
         if self.contains(*other) {
-            return Some(Ordering::Equal)
+            return Some(Ordering::Equal);
         }
 
         None
@@ -259,7 +258,8 @@ where T: PartialOrd + Copy {
 }
 
 impl<T> Add for Interval<T>
-where T: Add<Output = T> + Copy {
+    where T: Add<Output = T> + Copy
+{
     type Output = Interval<T>;
 
     fn add(self, other: Self) -> Self {
@@ -267,13 +267,14 @@ where T: Add<Output = T> + Copy {
         let end = Rounding::Upward.execute(|| self.end + other.end);
         Interval {
             start: start,
-            end: end
+            end: end,
         }
     }
 }
 
 impl<T> Sub for Interval<T>
-where T: Sub<Output = T> + Copy {
+    where T: Sub<Output = T> + Copy
+{
     type Output = Interval<T>;
 
     fn sub(self, other: Self) -> Self {
@@ -281,13 +282,14 @@ where T: Sub<Output = T> + Copy {
         let end = Rounding::Upward.execute(|| self.end - other.end);
         Interval {
             start: start,
-            end: end
+            end: end,
         }
     }
 }
 
 impl<T> Mul for Interval<T>
-where T: Mul<Output = T> + Copy + PartialOrd {
+    where T: Mul<Output = T> + Copy + PartialOrd
+{
     type Output = Interval<T>;
 
     fn mul(self, other: Self) -> Self {
@@ -301,13 +303,14 @@ where T: Mul<Output = T> + Copy + PartialOrd {
 
         Interval {
             start: min,
-            end: max
+            end: max,
         }
     }
 }
 
 impl<T> Div for Interval<T>
-where T: Div<Output = T> + Copy + PartialOrd {
+    where T: Div<Output = T> + Copy + PartialOrd
+{
     type Output = Interval<T>;
 
     fn div(self, other: Self) -> Self {
@@ -321,25 +324,27 @@ where T: Div<Output = T> + Copy + PartialOrd {
 
         Interval {
             start: min,
-            end: max
+            end: max,
         }
     }
 }
 
 impl<T> Neg for Interval<T>
-where T: Neg<Output = T> + Copy {
+    where T: Neg<Output = T> + Copy
+{
     type Output = Interval<T>;
 
     fn neg(self) -> Self {
         Interval {
             start: -self.end,
-            end: -self.start
+            end: -self.start,
         }
     }
 }
 
 impl<T> Interval<T>
-where T: Float + Num + FromPrimitive {
+    where T: Float + Num + FromPrimitive
+{
     pub fn sin(self) -> Self {
         let x2 = self * self;
 
@@ -347,7 +352,11 @@ where T: Float + Num + FromPrimitive {
             let mul: T = FromPrimitive::from_u64(2 * i * (2 * i + 1)).unwrap();
             let int = Interval::exact(mul);
             let mul = x2 / int;
-            if i % 2 == 0 { acc * mul + acc } else { acc * mul - acc }
+            if i % 2 == 0 {
+                acc * mul + acc
+            } else {
+                acc * mul - acc
+            }
         });
 
         let min = FromPrimitive::from_isize(-1).unwrap();

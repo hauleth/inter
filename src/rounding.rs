@@ -1,26 +1,26 @@
 use libc::c_int;
 use num::FromPrimitive;
 
-extern {
+extern "C" {
     fn fesetround(flag: c_int) -> c_int;
     fn fegetround() -> c_int;
 }
 
 pub enum Rounding {
-    ToNearest  = 0x0000,
-    Downward   = 0x0400,
-    Upward     = 0x0800,
+    ToNearest = 0x0000,
+    Downward = 0x0400,
+    Upward = 0x0800,
     TowardZero = 0x0C00,
 }
 
 impl FromPrimitive for Rounding {
     fn from_i64(n: i64) -> Option<Self> {
         match n {
-            0x0000 => Some(Rounding::ToNearest ),
-            0x0400 => Some(Rounding::Downward  ),
-            0x0800 => Some(Rounding::Upward    ),
+            0x0000 => Some(Rounding::ToNearest),
+            0x0400 => Some(Rounding::Downward),
+            0x0800 => Some(Rounding::Upward),
             0x0C00 => Some(Rounding::TowardZero),
-            _ => None
+            _ => None,
         }
     }
 

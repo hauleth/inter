@@ -2,7 +2,7 @@
 //!
 //! Created as part of Numerical Analysis at Computer Engineering classes at PUT
 
-extern crate num;
+extern crate num_traits as num;
 extern crate libc;
 
 mod utils;
